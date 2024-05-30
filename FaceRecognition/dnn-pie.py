@@ -8,6 +8,7 @@ from torch import nn, optim
 from torchvision import transforms, models
 from collections import defaultdict
 from PIL import Image
+import time
 
 class PIEMatDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -17,6 +18,7 @@ class PIEMatDataset(Dataset):
         self.labels = []
         self.image_types = []
         self.data = []
+        self.classes = []
         self.labels = []
         self.image_types = []
         self.load_mat_files()
@@ -32,6 +34,9 @@ class PIEMatDataset(Dataset):
                 
                 self.data.append(images)
                 self.labels.append(labels)
+                # 更新classes
+                self.classes.extend(np.unique(labels))
+                self.classes = list(set(self.classes))
                 self.image_types.extend([image_type] * len(labels))
         
         self.data = np.concatenate(self.data, axis=0)
@@ -62,6 +67,7 @@ transform = transforms.Compose([
 
 # 实例化数据集
 dataset = PIEMatDataset(root_dir="data/PIE dataset", transform=transform)
+print('classes', len(dataset.classes), dataset.classes)
 
 type2count = defaultdict(int)
 type2labels = defaultdict(list)
@@ -125,9 +131,13 @@ early_stopping = EarlyStopping(patience=5)
 
 # 训练模型
 def train_model(model, dataloaders, criterion, optimizer, num_epochs=25):
+    since = time.time()
+    
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}/{num_epochs - 1}")
         print("-" * 10)
+        
+        epoch_start = time.time()
         
         # 每个epoch有训练和验证阶段
         for phase in ['train', 'val']:
@@ -173,8 +183,14 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25):
                 early_stopping(epoch_loss, model)
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    model.load_state_dict(torch.load('checkpoint.pt'))
+                    model.load_state_dict(torch.load('checkpoint-pie.pt'))
                     return model
+        
+        epoch_time = time.time() - epoch_start
+        print(f"Epoch {epoch} time: {epoch_time:.4f} seconds")
+    
+    total_time = time.time() - since
+    print(f"Total training time: {total_time // 60:.0f}m {total_time % 60:.0f}s")
     
     return model
 
@@ -190,7 +206,8 @@ def evaluate_model(model, dataloader):
     model.eval()
     running_corrects = defaultdict(int)
     total_counts = defaultdict(int)
-    
+    incorrect_samples = []
+
     for inputs, labels, image_types in dataloader:
         inputs = inputs.to(device)
         labels = labels.to(device)
@@ -199,22 +216,30 @@ def evaluate_model(model, dataloader):
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
         
-        for label, pred, image_type in zip(labels, preds, image_types):
+        for label, pred, image_type, input_img in zip(labels, preds, image_types, inputs):
             if label == pred:
                 running_corrects[image_type] += 1
+            else:
+                incorrect_samples.append((input_img.cpu(), label.item(), pred.item()))
             total_counts[image_type] += 1
     
-    print("| Image Type | Accuracy | # Corrects | # Total |")
-    print("|------------|----------|------------|---------|")
-    total_corrects = 0
-    total_images = 0
     for image_type in total_counts:
         accuracy = running_corrects[image_type] / total_counts[image_type]
-        total_corrects += running_corrects[image_type]
-        total_images += total_counts[image_type]
-        print(f"| {image_type:<10} | {accuracy:.4f}   | {running_corrects[image_type]:<10} | {total_counts[image_type]:<7} |")
-    
-    total_accuracy = total_corrects / total_images
-    print(f"| **Total**  | {total_accuracy:.4f}   | {total_corrects:<10} | {total_images:<7} |")
+        print(f"Accuracy for {image_type}: {accuracy:.4f}")
+        print(running_corrects[image_type], total_counts[image_type])
 
-evaluate_model(model, test_dataloader)
+    accuracy = sum(running_corrects.values()) / sum(total_counts.values())
+    print(f"Total Accuracy: {accuracy:.4f}")
+    
+    return incorrect_samples
+
+incorrect_samples = evaluate_model(model, test_dataloader)
+
+# 保存错误样例的图像
+def save_incorrect_samples(samples, classes, save_dir='incorrect_samples'):
+    os.makedirs(save_dir, exist_ok=True)
+    for i, (img, true_label, pred_label) in enumerate(samples):
+        img = transforms.ToPILImage()(img)
+        img.save(os.path.join(save_dir, f"sample_{i}_true_{classes[true_label]}_pred_{classes[pred_label]}.png"))
+
+save_incorrect_samples(incorrect_samples, dataset.classes)
