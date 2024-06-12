@@ -1,6 +1,7 @@
 import argparse
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import polyiou
 from functools import partial
 
@@ -32,7 +33,13 @@ def parse_gt(filename):
     return objects
 
 def voc_ap(rec, prec, use_07_metric=False):
+    """ ap = voc_ap(rec, prec, [use_07_metric])
+    Compute VOC AP given precision and recall.
+    If use_07_metric is true, uses the
+    VOC 07 11 point method (default:False).
+    """
     if use_07_metric:
+        # 11 point metric
         ap = 0.
         for t in np.arange(0., 1.1, 0.1):
             if np.sum(rec >= t) == 0:
@@ -41,18 +48,25 @@ def voc_ap(rec, prec, use_07_metric=False):
                 p = np.max(prec[rec >= t])
             ap = ap + p / 11.
     else:
+        # correct AP calculation
+        # first append sentinel values at the end
         mrec = np.concatenate(([0.], rec, [1.]))
         mpre = np.concatenate(([0.], prec, [0.]))
+
+        # compute the precision envelope
         for i in range(mpre.size - 1, 0, -1):
             mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
+
+        # to calculate area under PR curve, look for points
+        # where X axis (recall) changes value
         i = np.where(mrec[1:] != mrec[:-1])[0]
+
+        # and sum (\Delta recall) * prec
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
-    return ap
+    return ap, mpre, mrec
 
 def voc_eval(detpath, annopath, classname, ovthresh=0.5, use_07_metric=False):
-    # Get list of image names from annotation files
     imagenames = [os.path.splitext(f)[0] for f in os.listdir(annopath) if f.endswith('.txt')]
-
     recs = {imagename: parse_gt(os.path.join(annopath, imagename + '.txt')) for imagename in imagenames}
 
     class_recs = {}
@@ -71,15 +85,22 @@ def voc_eval(detpath, annopath, classname, ovthresh=0.5, use_07_metric=False):
 
     for imagename in imagenames:
         detfile = os.path.join(detpath, f"{imagename}.txt")
+        if not os.path.exists(detfile):
+            print(f"Detection file {detfile} does not exist, skipping.")
+            continue
         with open(detfile, 'r') as f:
             lines = f.readlines()
         splitlines = [x.strip().split(' ') for x in lines]
         image_ids.extend([imagename] * len(splitlines))
-        confidence.extend([float(x[4]) for x in splitlines])
-        BB.extend([[float(z) for z in x[:4]] for x in splitlines])
+        confidence.extend([float(x[9]) for x in splitlines])
+        BB.extend([[float(z) for z in x[:8]] for x in splitlines])
 
     confidence = np.array(confidence)
     BB = np.array(BB)
+
+    sorted_ind = np.argsort(-confidence)
+    BB = BB[sorted_ind, :]
+    image_ids = [image_ids[x] for x in sorted_ind]
 
     nd = len(image_ids)
     tp = np.zeros(nd)
@@ -141,11 +162,13 @@ def voc_eval(detpath, annopath, classname, ovthresh=0.5, use_07_metric=False):
         else:
             fp[d] = 1.
 
+        print(f"Image: {image_ids[d]}, Confidence: {confidence[d]}, TP: {tp[d]}, FP: {fp[d]}")
+
     fp = np.cumsum(fp)
     tp = np.cumsum(tp)
     rec = tp / float(npos)
     prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
-    ap = voc_ap(rec, prec, use_07_metric)
+    ap, prec, rec = voc_ap(rec, prec, use_07_metric)
     return rec, prec, ap
 
 def main():
@@ -159,6 +182,15 @@ def main():
     print(f'Recall: {rec}')
     print(f'Precision: {prec}')
     print(f'AP: {ap}')
+
+    # Plot Precision-Recall curve
+    plt.figure()
+    plt.plot(rec, prec, lw=2, label=f'Precision-Recall curve (AP={ap:.2f})')
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title(f'Precision-Recall curve: {classname}')
+    plt.legend(loc="best")
+    plt.savefig('test.png')
 
 if __name__ == '__main__':
     main()

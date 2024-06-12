@@ -67,6 +67,7 @@ for img_name in tqdm(os.listdir(img_dir)):
                 cx, cy, w, h, angle, score = plane
                 polygon = bbox_to_polygon(cx, cy, w, h, angle * 180 / math.pi)
                 polygon_str = ' '.join(f"{coord[0]:.1f} {coord[1]:.1f}" for coord in polygon)
+                # 默认difficult 取0
                 f.write(f"{polygon_str} Airplane 0\n")
     
     # Save the result image

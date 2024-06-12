@@ -1,7 +1,5 @@
 dataset_type = 'DOTADataset'
 data_root = 'data/'
-
-
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -45,8 +43,8 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type='DOTADataset',
-        ann_file=data_root + 'train_val/train_val_coco_ann.json',
-        img_prefix=data_root + 'train_val/images/',
+        ann_file='data/train_val/train_val_coco_ann.json',
+        img_prefix='data/train_val/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(type='LoadAnnotations', with_bbox=True),
@@ -68,8 +66,8 @@ data = dict(
         version='le90'),
     val=dict(
         type='DOTADataset',
-        ann_file=data_root + 'train_val/val_coco_ann.json',  # If you have a separate validation set
-        img_prefix=data_root + 'train_val/images/',
+        ann_file='data/train_val/val_coco_ann.json',
+        img_prefix='data/train_val/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(
@@ -91,8 +89,8 @@ data = dict(
         version='le90'),
     test=dict(
         type='DOTADataset',
-         ann_file=data_root + 'test/test_coco_ann.json',
-        img_prefix=data_root + 'test/images/',
+        ann_file='data/test/test_coco_ann.json',
+        img_prefix='data/test/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(
@@ -249,3 +247,6 @@ model = dict(
             score_thr=0.05,
             nms=dict(iou_thr=0.1),
             max_per_img=2000)))
+work_dir = 'work_dirs/train'
+auto_resume = False
+gpu_ids = range(0, 1)
