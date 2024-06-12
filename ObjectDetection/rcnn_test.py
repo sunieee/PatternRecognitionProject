@@ -10,7 +10,7 @@ device = 'cuda:0'
 model = init_detector(config_file, checkpoint_file, device=device)
 
 # Load image
-img = 'data/test/images/4__1__0___0.png'
+img = 'data/test/images/5__1__0___0.png'
 # img = mmcv.imread(img)
 # img = torch.from_numpy(img).to(device)
 
@@ -18,6 +18,7 @@ img = 'data/test/images/4__1__0___0.png'
 result = inference_detector(model, img)
 
 print(result)
+print('plane class:', result[0])
 
 # Visualize results
 out_file = 'rcnn_test.png'
