@@ -129,7 +129,7 @@ log_config = dict(interval=50, hooks=[dict(type='TextLoggerHook')])
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
-resume_from = None
+resume_from = 'oriented_rcnn_r50_fpn_1x_dota_le90-6d2b2ce0.pth'
 workflow = [('train', 1)]
 opencv_num_threads = 0
 mp_start_method = 'fork'
@@ -251,6 +251,6 @@ model = dict(
             score_thr=0.05,
             nms=dict(iou_thr=0.1),
             max_per_img=2000)))
-work_dir = 'work_dirs/train'
-auto_resume = False
+work_dir = 'work_dirs/tuning'
+auto_resume = True
 gpu_ids = range(0, 1)

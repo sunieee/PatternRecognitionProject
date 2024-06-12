@@ -8,16 +8,25 @@ import numpy as np
 from tqdm import tqdm
 import math
 
+# 添加参数，指定配置文件和模型文件，输出目录
+import argparse
+parser = argparse.ArgumentParser(description='Inference on the test dataset')
+parser.add_argument('--config', type=str, default='oriented_rcnn_r50_fpn_1x_dota_le90.py', help='Config file')
+parser.add_argument('--checkpoint', type=str, default='oriented_rcnn_r50_fpn_1x_dota_le90-6d2b2ce0.pth', help='Checkpoint file')
+parser.add_argument('--output-label-dir', type=str, default='results/pretrainlabel', help='Directory for saving label files')
+parser.add_argument('--output-image-dir', type=str, default='results/pretrainimages', help='Directory for saving images files')
+args = parser.parse_args()
+
 # Initialize the model
-config_file = 'oriented_rcnn_r50_fpn_1x_dota_le90.py'
-checkpoint_file = 'oriented_rcnn_r50_fpn_1x_dota_le90-6d2b2ce0.pth'
+# config_file = 'oriented_rcnn_r50_fpn_1x_dota_le90.py'
+# checkpoint_file = 'oriented_rcnn_r50_fpn_1x_dota_le90-6d2b2ce0.pth'
+config_file = args.config
+checkpoint_file = args.checkpoint
+output_label_dir = args.output_label_dir
+output_image_dir = args.output_image_dir
 device = 'cuda:0'
 
 model = init_detector(config_file, checkpoint_file, device=device)
-
-# Directory for saving results
-output_label_dir = 'results/label/'
-output_image_dir = 'results/images/'
 os.makedirs(output_label_dir, exist_ok=True)
 os.makedirs(output_image_dir, exist_ok=True)
 
@@ -63,7 +72,7 @@ for img_name in tqdm(os.listdir(img_dir)):
     result_files.append(output_file)
     with open(output_file, 'w') as f:
         for plane in planes:
-            if plane[5] > 0.05:  # Filter out low-confidence detections
+            if plane[5] > 0.7:  # Filter out low-confidence detections
                 cx, cy, w, h, angle, score = plane
                 polygon = bbox_to_polygon(cx, cy, w, h, angle * 180 / math.pi)
                 polygon_str = ' '.join(f"{coord[0]:.1f} {coord[1]:.1f}" for coord in polygon)

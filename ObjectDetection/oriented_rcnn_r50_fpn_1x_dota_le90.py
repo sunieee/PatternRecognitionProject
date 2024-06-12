@@ -1,6 +1,6 @@
 dataset_type = 'DOTADataset'
 data_root = 'data/'
-
+classes = ('Airplane',)
 
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -44,73 +44,25 @@ data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
-        type='DOTADataset',
-        ann_file=data_root + 'train_val/train_val_coco_ann.json',
+        type=dataset_type,
+        classes=classes,
+        ann_file=data_root + 'train_val/train_coco_ann.json',
         img_prefix=data_root + 'train_val/images/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(type='LoadAnnotations', with_bbox=True),
-            dict(type='RResize', img_scale=(1024, 1024)),
-            dict(
-                type='RRandomFlip',
-                flip_ratio=[0.25, 0.25, 0.25],
-                direction=['horizontal', 'vertical', 'diagonal'],
-                version='le90'),
-            dict(
-                type='Normalize',
-                mean=[123.675, 116.28, 103.53],
-                std=[58.395, 57.12, 57.375],
-                to_rgb=True),
-            dict(type='Pad', size_divisor=32),
-            dict(type='DefaultFormatBundle'),
-            dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
-        ],
+        pipeline=train_pipeline,
         version='le90'),
     val=dict(
-        type='DOTADataset',
+        type=dataset_type,
+        classes=classes,
         ann_file=data_root + 'train_val/val_coco_ann.json',  # If you have a separate validation set
         img_prefix=data_root + 'train_val/images/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(
-                type='MultiScaleFlipAug',
-                img_scale=(1024, 1024),
-                flip=False,
-                transforms=[
-                    dict(type='RResize'),
-                    dict(
-                        type='Normalize',
-                        mean=[123.675, 116.28, 103.53],
-                        std=[58.395, 57.12, 57.375],
-                        to_rgb=True),
-                    dict(type='Pad', size_divisor=32),
-                    dict(type='DefaultFormatBundle'),
-                    dict(type='Collect', keys=['img'])
-                ])
-        ],
+        pipeline=test_pipeline,
         version='le90'),
     test=dict(
-        type='DOTADataset',
+        type=dataset_type,
+        classes=classes,
          ann_file=data_root + 'test/test_coco_ann.json',
         img_prefix=data_root + 'test/images/',
-        pipeline=[
-            dict(type='LoadImageFromFile'),
-            dict(
-                type='MultiScaleFlipAug',
-                img_scale=(1024, 1024),
-                flip=False,
-                transforms=[
-                    dict(type='RResize'),
-                    dict(
-                        type='Normalize',
-                        mean=[123.675, 116.28, 103.53],
-                        std=[58.395, 57.12, 57.375],
-                        to_rgb=True),
-                    dict(type='Pad', size_divisor=32),
-                    dict(type='DefaultFormatBundle'),
-                    dict(type='Collect', keys=['img'])
-                ])
-        ],
+        pipeline=test_pipeline,
         version='le90'))
 evaluation = dict(interval=1, metric='mAP')
 optimizer = dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001)
@@ -184,7 +136,7 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=15,
+            num_classes=1,
             bbox_coder=dict(
                 type='DeltaXYWHAOBBoxCoder',
                 angle_range='le90',

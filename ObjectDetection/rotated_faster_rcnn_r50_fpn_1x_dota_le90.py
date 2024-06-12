@@ -1,6 +1,5 @@
 dataset_type = 'DOTADataset'
-data_root = 'data/'
-classes = ('Airplane', )
+data_root = 'data/split_1024_dota1_0/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -44,9 +43,8 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type='DOTADataset',
-        classes=('Airplane', ),
-        ann_file='data/train_val/train_coco_ann.json',
-        img_prefix='data/train_val/images/',
+        ann_file='data/split_1024_dota1_0/trainval/annfiles/',
+        img_prefix='data/split_1024_dota1_0/trainval/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(type='LoadAnnotations', with_bbox=True),
@@ -68,9 +66,8 @@ data = dict(
         version='le90'),
     val=dict(
         type='DOTADataset',
-        classes=('Airplane', ),
-        ann_file='data/train_val/val_coco_ann.json',
-        img_prefix='data/train_val/images/',
+        ann_file='data/split_1024_dota1_0/trainval/annfiles/',
+        img_prefix='data/split_1024_dota1_0/trainval/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(
@@ -92,9 +89,8 @@ data = dict(
         version='le90'),
     test=dict(
         type='DOTADataset',
-        classes=('Airplane', ),
-        ann_file='data/test/test_coco_ann.json',
-        img_prefix='data/test/images/',
+        ann_file='data/split_1024_dota1_0/test/images/',
+        img_prefix='data/split_1024_dota1_0/test/images/',
         pipeline=[
             dict(type='LoadImageFromFile'),
             dict(
@@ -135,7 +131,7 @@ opencv_num_threads = 0
 mp_start_method = 'fork'
 angle_version = 'le90'
 model = dict(
-    type='OrientedRCNN',
+    type='RotatedFasterRCNN',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -152,7 +148,7 @@ model = dict(
         out_channels=256,
         num_outs=5),
     rpn_head=dict(
-        type='OrientedRPNHead',
+        type='RotatedRPNHead',
         in_channels=256,
         feat_channels=256,
         version='le90',
@@ -162,23 +158,19 @@ model = dict(
             ratios=[0.5, 1.0, 2.0],
             strides=[4, 8, 16, 32, 64]),
         bbox_coder=dict(
-            type='MidpointOffsetCoder',
-            angle_range='le90',
-            target_means=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            target_stds=[1.0, 1.0, 1.0, 1.0, 0.5, 0.5]),
+            type='DeltaXYWHBBoxCoder',
+            target_means=[0.0, 0.0, 0.0, 0.0],
+            target_stds=[1.0, 1.0, 1.0, 1.0]),
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
         loss_bbox=dict(
             type='SmoothL1Loss', beta=0.1111111111111111, loss_weight=1.0)),
     roi_head=dict(
-        type='OrientedStandardRoIHead',
+        type='RotatedStandardRoIHead',
+        version='le90',
         bbox_roi_extractor=dict(
-            type='RotatedSingleRoIExtractor',
-            roi_layer=dict(
-                type='RoIAlignRotated',
-                out_size=7,
-                sample_num=2,
-                clockwise=True),
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', output_size=7, sampling_ratio=0),
             out_channels=256,
             featmap_strides=[4, 8, 16, 32]),
         bbox_head=dict(
@@ -186,13 +178,12 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=1,
+            num_classes=15,
             bbox_coder=dict(
-                type='DeltaXYWHAOBBoxCoder',
+                type='DeltaXYWHAHBBoxCoder',
                 angle_range='le90',
-                norm_factor=None,
+                norm_factor=2,
                 edge_swap=True,
-                proj_xy=True,
                 target_means=(0.0, 0.0, 0.0, 0.0, 0.0),
                 target_stds=(0.1, 0.1, 0.2, 0.2, 0.1)),
             reg_class_agnostic=True,
@@ -220,7 +211,7 @@ model = dict(
         rpn_proposal=dict(
             nms_pre=2000,
             max_per_img=2000,
-            nms=dict(type='nms', iou_threshold=0.8),
+            nms=dict(type='nms', iou_threshold=0.7),
             min_bbox_size=0),
         rcnn=dict(
             assigner=dict(
@@ -229,10 +220,9 @@ model = dict(
                 neg_iou_thr=0.5,
                 min_pos_iou=0.5,
                 match_low_quality=False,
-                iou_calculator=dict(type='RBboxOverlaps2D'),
                 ignore_iof_thr=-1),
             sampler=dict(
-                type='RRandomSampler',
+                type='RandomSampler',
                 num=512,
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
@@ -243,7 +233,7 @@ model = dict(
         rpn=dict(
             nms_pre=2000,
             max_per_img=2000,
-            nms=dict(type='nms', iou_threshold=0.8),
+            nms=dict(type='nms', iou_threshold=0.7),
             min_bbox_size=0),
         rcnn=dict(
             nms_pre=2000,
@@ -251,6 +241,3 @@ model = dict(
             score_thr=0.05,
             nms=dict(iou_thr=0.1),
             max_per_img=2000)))
-work_dir = 'work_dirs/train'
-auto_resume = False
-gpu_ids = range(0, 1)
