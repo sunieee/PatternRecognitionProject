@@ -91,6 +91,19 @@ def voc_eval(detpath, annopath, classname, ovthresh=0.5, use_07_metric=False):
         with open(detfile, 'r') as f:
             lines = f.readlines()
         splitlines = [x.strip().split(' ') for x in lines]
+
+        # 删除含有负数的bbox
+        new_splitlines = []
+        for splitline in splitlines:
+            valid = True
+            for x in splitline[:8]:
+                if float(x) < -10:
+                    valid = False
+            if valid:
+                new_splitlines.append(splitline)
+
+        splitlines = new_splitlines
+
         image_ids.extend([imagename] * len(splitlines))
         confidence.extend([float(x[9]) for x in splitlines])
         BB.extend([[float(z) for z in x[:8]] for x in splitlines])

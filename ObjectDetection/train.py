@@ -117,7 +117,7 @@ def train_detector(model,
     optimizer = build_optimizer(model, cfg.optimizer)
 
     if cfg.resume_from:
-        cfg.runner['max_epochs'] *= 2
+        cfg.runner['max_epochs'] *= 3
 
     runner = build_runner(
         cfg.runner,
